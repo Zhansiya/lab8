@@ -1,81 +1,95 @@
 import pygame
+import sys
+
+pygame.init()
+
+screen = pygame.display.set_mode((800, 600))
+pygame.display.set_caption("Paint")
+clock = pygame.time.Clock()
+
+radius = 10
+color = (0, 0, 255)
+tool = "brush"
+start_pos = None
+drawing = False
+
+def draw_rectangle(screen, start, end, color, width = 2):
+    x1, y1 = start
+    x2, y2 = end
+    rect = pygame.Rect(min(x1, x2), min(y1, y2), abs(x2 - x1), abs(y2 - y1))
+    pygame.draw.rect(screen, color, rect, width)
+
+def draw_circle(screen, start, end, color, width = 2):
+    x1, y1 = start
+    x2, y2 = end
+    radius = int(((x2 - x1)**2 + (y2 - y1)**2)**0.5)
+    pygame.draw.circle(screen, color, start, radius, width)
 
 def main():
-    pygame.init()
-    screen = pygame.display.set_mode((640, 480))
-    clock = pygame.time.Clock()
+    global color, radius, tool, start_pos, drawing
 
-    radius = 15
-    x = 0
-    y = 0
-    mode = 'blue'
-    points = []
+    canvas = pygame.Surface(screen.get_size())
+    canvas.fill((0,0,0))
 
     while True:
-        pressed = pygame.key.get_pressed()
-
-        alt_held = pressed[pygame.K_LALT] or pressed[pygame.K_RALT]
-        ctrl_held = pressed[pygame.K_LCTRL] or pressed[pygame.K_RCTRL]
+        screen.blit(canvas, (0,0))
+        mouse = pygame.mouse.get_pos()
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                return
+                pygame.quit()
+                sys.exit()
+
             if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_w and ctrl_held:
-                    return
-                if event.key == pygame.K_F4 and alt_held:
-                    return
-                if event.key == pygame.K_ESCAPE:
-                    return
-                
-                if event.key == pygame.K_r:
-                    mode = "red"
-                elif event.key ==pygame.K_g:
-                    mode = "green"
+                if event.key == pygame.K_1:
+                    tool = "brush"
+                elif event.key == pygame.K_2:
+                    tool = "rect"
+                elif event.key == pygame.K_3:
+                    tool = "circle"
+                elif event.key == pygame.K_4:
+                    tool = "eraseer"
+
+                elif event.key == pygame.K_r:
+                    color = (255,0,0)
+                elif event.key == pygame.K_g:
+                    color = (0,255,0)
                 elif event.key == pygame.K_b:
-                    mode = "blue"
+                    color = (0,0,255)
+                elif event.key == pygame.K_w:
+                    color = (255,255,255)
+                elif event.key == pygame.K_k:
+                    color = (0,0,0)
 
             if event.type == pygame.MOUSEBUTTONDOWN:
-                if event.button == 1:
-                    radius = min(200, radius + 1)
-                elif event.button == 3:
-                    radius = max(1, radius - 1)
+                drawing = True
+                start_pos = event.pos
 
-            if event.type == pygame.MOUSEMOTION:
-                position = event.pos
-                points = points + [position]
-                points = points[-256:]
+            if event.type == pygame.MOUSEBUTTONUP:
+                if tool == "rect":
+                    draw_rectangle(canvas, start_pos, event.pos, color, 3)
+                elif tool == "circle":
+                    draw_circle(canvas, start_pos, event.pos, color, 3)
+                drawing = False
 
-        screen.fill((0,0,0))
+        if drawing:
+            if tool == "brush":
+                pygame.draw.circle(canvas, color, mouse, radius)
+            elif tool == "eraser":
+                pygame.draw.circle(canvas, (0,0,0), mouse, radius)
 
-        i = 0
-        while i < len(points) - 1:
-            drawLineBetween(screen, i, points[i], points[i + 1], radius, mode)
-            i += 1
+        if drawing and tool in ["rect", "circle"]:
+            temp = canvas.copy()
+            if tool == "rect":
+                draw_rectangle(temp, start_pos, mouse, color, 2)
+            elif tool == "circle":
+                draw_circle(temp, start_pos, mouse, color, 2)
+            screen.blit(temp, (0,0))
 
-        pygame.display.flip()
+        show_text = pygame.font.SysFont("Arial", 20).render(f"Tool: {tool.upper()} | Press 1-Brush 2-Rect 3-Circle 4-Eraser | Colors: R,G,B,W,K", True, (255,255,255))
+        screen.blit(show_text, (10,10))
+
+        pygame.display.update()
         clock.tick(60)
-
-def drawLineBetween(screen, index, start, end, width, color_mode):
-    c1 = max(0, min(255, 2 * index - 256))
-    c2 = max(0, min(255, 2 * index))
-
-    if color_mode == 'blue':
-        color = (c1, c1, c2)
-    elif color_mode == 'red':
-        color = (c2, c1, c1)
-    elif color_mode == 'green':
-        color = (c1, c2, c1)
-
-    dx = start[0] - end[0]
-    dy = start[1] - end[1]
-    iterations = max(abs(dx), abs(dy))
-
-    for i in range(iterations):
-        progress = 1.0 * i / iterations
-        aprogress = 1 - progress
-        x = int(aprogress * start[0] + progress * end[0])
-        y = int(aprogress * start[1] + progress * end[1])
-        pygame.draw.circle(screen, color, (x, y), width)
 
 main()
